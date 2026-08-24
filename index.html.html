@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --turf:       #000000;
+    --turf-mid:   #000000;
+    --card:       #131313;
+    --card-2:     #1e1e1e;
+    --line:       rgba(255,255,255,0.16);
+    --line-soft:  rgba(255,255,255,0.08);
+    --ink:        #ffffff;
+    --ink-soft:   #dcdcdc;
+    --ink-faint:  #8f8f8f;
+    --accent:      #5b8aff;
+    --accent-dk:   #3565e6;
+    --accent-glow: rgba(91,138,255,0.26);
+    --qb: #ff6b76;
+    --rb: #34a9ff;
+    --wr: #22e6a8;
+    --te: #dd8ef5;
+    --def: #c3cdd8;
+    --pk: #f5d554;
+    --keeper: #5b8aff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--turf);
+    color: var(--ink);
+    font-family: 'Work Sans', 'Segoe UI', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(91,138,255,0.10), transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(91,138,255,0.06), transparent 40%),
+      var(--turf);
+  }
+  ::selection { background: var(--accent-glow); }
+  .display { font-family: 'Anton', 'Work Sans', sans-serif; font-weight: 400; letter-spacing: 0.01em; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  a { color: inherit; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .wrap {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 20px 24px 48px;
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 14px 12px 36px; }
+  }
+
+  /* ---------------- Header / scoreboard ---------------- */
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .brand .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .brand .sub {
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .league-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .league-tag {
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--card);
+  }
+  @media (max-width: 640px) {
+    .masthead { gap: 12px 16px; margin-bottom: 12px; }
+    .brand h1 { font-size: 27px; }
+    .league-tags { gap: 6px; }
+    .league-tag { padding: 4px 10px; font-size: 10px; }
+  }
+
+  .clock {
+    position: relative;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border-radius: 12px;
+    padding: 14px 22px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    overflow: hidden;
+  }
+  .clock.your-turn { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 28px var(--accent-glow); }
+  .clock.done { border-color: var(--wr); }
+  .clock-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .pick-badge {
+    flex: 0 0 auto;
+    width: 58px; height: 58px;
+    border-radius: 10px;
+    background: var(--turf);
+    border: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .pick-badge .rp { font-size: 9px; color: var(--ink-faint); letter-spacing: 0.08em; }
+  .pick-badge .num { font-family: 'Anton', sans-serif; font-size: 20px; color: var(--accent); line-height: 1; }
+  .clock-status { min-width: 0; }
+  .clock-status .label { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 2px; }
+  .clock-status .owner { font-family: 'Anton', sans-serif; font-size: 26px; text-transform: uppercase; color: var(--ink); line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clock-status .owner.you { color: var(--accent); }
+  .clock-status .keeper-note { font-size: 11.5px; color: var(--accent); margin-top: 2px; }
+  .clock-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 10px 16px;
+    transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--ink-faint); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+  .btn.primary:hover { background: #6c98ff; }
+  .btn.ghost { background: transparent; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  @media (max-width: 640px) {
+    .clock { padding: 12px 14px; gap: 12px; }
+    .clock-left { width: 100%; }
+    .clock-status .owner { font-size: 21px; }
+    .pick-badge { width: 50px; height: 50px; }
+    .clock-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .clock-actions .toggle { grid-column: 1 / -1; justify-content: flex-start; padding: 2px 0 4px; }
+    .clock-actions .btn {
+      width: 100%;
+      white-space: normal;
+      line-height: 1.25;
+      padding: 12px 10px;
+      font-size: 12px;
+    }
+  }
+
+  .snake-track { display: flex; gap: 4px; margin-top: 12px; }
+  .snake-dot {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--line);
+  }
+  .snake-dot.filled { background: var(--ink-faint); }
+  .snake-dot.keeper { background: var(--accent-dk); }
+  .snake-dot.current { background: var(--accent); }
+
+  /* ---------------- Layout grid ---------------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    /* On a single column, drafting (Available Players + Your Team) matters
+       more than the reference board — put the sidebar first. */
+    .layout > .sidebar { order: 1; position: static; }
+    .layout > .panel { order: 2; }
+  }
+  @media (max-width: 640px) {
+    .layout { gap: 12px; }
+    .sidebar { gap: 12px; }
+  }
+
+  .panel {
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--card-2);
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .panel-head .count { font-size: 11px; color: var(--ink-faint); }
+  .panel-head-right { display: flex; align-items: center; gap: 10px; }
+
+  /* ---------------- Draft grades ---------------- */
+  :root {
+    --gA: #3fe884;
+    --gB: #aee85f;
+    --gC: #f5d554;
+    --gD: #ff9a4d;
+    --gF: #ff4d63;
+  }
+  .grades-panel { margin-top: 18px; }
+  .grade-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Anton', sans-serif;
+    letter-spacing: 0.02em;
+    border-radius: 7px;
+    color: #101a0d;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    flex: 0 0 auto;
+  }
+  .grade-badge.sm { width: 24px; height: 24px; font-size: 12.5px; border-radius: 6px; }
+  .grade-badge[data-grade="A"] { background: var(--gA); }
+  .grade-badge[data-grade="B"] { background: var(--gB); }
+  .grade-badge[data-grade="C"] { background: var(--gC); }
+  .grade-badge[data-grade="D"] { background: var(--gD); color: #1a1006; }
+  .grade-badge[data-grade="F"] { background: var(--gF); color: #1a0a0d; }
+
+  .grades-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.grades-table, table.power-table { border-collapse: collapse; width: 100%; min-width: 820px; }
+  table.grades-table th, table.power-table th {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  table.grades-table th .th-sub, table.power-table th .th-sub {
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 2px;
+  }
+  table.grades-table td, table.power-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: middle;
+    font-size: 12.5px;
+  }
+  table.grades-table tr.you-row, table.power-table tr.you-row { background: rgba(77,127,255,0.07); }
+  table.grades-table tr.you-row td:first-child, table.power-table tr.you-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+  .g-team { display: flex; align-items: center; gap: 10px; }
+  .g-team .g-name { font-weight: 700; color: var(--ink); }
+  .g-team .g-name.you { color: var(--accent); }
+  .g-rank { color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; font-size: 11px; width: 20px; display: inline-block; }
+  .g-value { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+  .g-value.pos { color: var(--gA); }
+  .g-value.neg { color: var(--gF); }
+  .g-pickchip { font-size: 11px; color: var(--ink-soft); }
+  .g-pickchip .nm { color: var(--ink); font-weight: 600; }
+  .g-pickchip .dv { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+  .g-pickchip .dv.pos { color: var(--gA); }
+  .g-pickchip .dv.neg { color: var(--gF); }
+  .g-note { color: var(--ink-soft); font-size: 12px; max-width: 460px; }
+  .grades-empty { padding: 26px 16px; text-align: center; color: var(--ink-faint); font-size: 12.5px; }
+
+  .g-record {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .g-record .rec-pct { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 400; color: var(--ink-faint); margin-left: 6px; }
+  .g-power-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .g-power-bar {
+    position: relative;
+    width: 60px; height: 6px;
+    border-radius: 3px;
+    background: var(--line);
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  .g-power-bar span {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  .g-power-num { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); width: 26px; text-align: right; }
+
+  /* ---------------- Draft board ---------------- */
+  .board-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.board { border-collapse: collapse; width: 100%; min-width: 980px; }
+  table.board th {
+    position: sticky; top: 0;
+    background: var(--card-2);
+    z-index: 2;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    font-weight: 700;
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  table.board th .slot-num { color: var(--ink-faint); font-weight: 400; margin-right: 4px; }
+  table.board th.you { color: var(--accent); }
+  table.board td {
+    padding: 4px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+    width: 100px;
+  }
+  table.board td.rnd-label {
+    width: 34px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .cell {
+    border-radius: 7px;
+    padding: 6px 7px;
+    min-height: 46px;
+    background: var(--turf-mid);
+    border: 1px solid transparent;
+  }
+  .cell.empty { border: 1px dashed var(--line); background: transparent; }
+  .cell.current { border-color: var(--accent); background: var(--accent-glow); animation: pulse 1.4s ease-in-out infinite; }
+  .cell.keeper { border-color: var(--accent-dk); background: rgba(77,127,255,0.10); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 var(--accent-glow); } 50% { box-shadow: 0 0 0 4px transparent; } }
+  .cell .pk-no { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--ink-faint); margin-bottom: 2px; }
+  .cell .pl-name { font-size: 11.5px; font-weight: 600; line-height: 1.2; color: var(--ink); }
+  .cell .pl-meta { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+  .pos-chip {
+    font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+    color: #0d1410; letter-spacing: 0.02em;
+  }
+  .pos-chip.QB { background: var(--qb); } .pos-chip.RB { background: var(--rb); }
+  .pos-chip.WR { background: var(--wr); } .pos-chip.TE { background: var(--te); }
+  .pos-chip.DEF { background: var(--def); } .pos-chip.PK { background: var(--pk); }
+  .cell .pl-team { font-size: 10px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .keeper-star { color: var(--accent); font-size: 10px; margin-left: 3px; }
+
+  /* ---------------- Sidebar ---------------- */
+  .sidebar { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 16px; }
+
+  .roster-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .roster-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: var(--turf-mid);
+    min-height: 34px;
+  }
+  .roster-row.filled { background: var(--card-2); }
+  .roster-slot { font-size: 10px; font-weight: 700; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .roster-row.filled .roster-slot { color: var(--ink-soft); }
+  .roster-player { font-size: 12.5px; color: var(--ink-soft); }
+  .roster-row.filled .roster-player { color: var(--ink); font-weight: 600; }
+  .roster-empty-dash { color: var(--ink-faint); font-size: 12px; }
+  .roster-right { display: flex; align-items: center; gap: 6px; }
+  .roster-bye { font-size: 9.5px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .roster-bye-warn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 10px 12px 0 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(240,151,90,0.12);
+    border: 1px solid rgba(240,151,90,0.35);
+    color: var(--gD);
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+
+  /* ---------------- Team picker ---------------- */
+  .league-tag.who-tag {
+    cursor: pointer;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(77,127,255,0.08);
+    font-weight: 700;
+  }
+  .league-tag.who-tag:hover { background: rgba(77,127,255,0.16); }
+  .team-picker-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(6,10,7,0.86);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .team-picker-card {
+    width: 100%;
+    max-width: 600px;
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 30px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .team-picker-card .eyebrow {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin-bottom: 6px;
+  }
+  .team-picker-card h2 {
+    margin: 0 0 6px; font-size: 27px; text-transform: uppercase;
+    font-family: 'Anton', sans-serif; line-height: 1.05;
+  }
+  .team-picker-card .sub { color: var(--ink-faint); font-size: 12.5px; margin-bottom: 20px; line-height: 1.5; }
+  .team-picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .team-pick-btn {
+    border: 1px solid var(--line);
+    background: var(--turf-mid);
+    color: var(--ink);
+    border-radius: 9px;
+    padding: 13px 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .team-pick-btn:hover { border-color: var(--accent); background: rgba(77,127,255,0.10); }
+  .team-pick-btn .slot-no {
+    display: block; font-size: 9.5px; color: var(--ink-faint); font-weight: 400;
+    margin-bottom: 4px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;
+  }
+  @media (max-width: 480px) {
+    .team-picker-overlay { padding: 14px; }
+    .team-picker-card { padding: 22px 18px; }
+    .team-picker-card h2 { font-size: 22px; }
+    .team-picker-grid { grid-template-columns: repeat(2, 1fr); }
+    .team-pick-btn { padding: 15px 10px; font-size: 13px; }
+  }
+
+  .pool-controls { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .pool-search {
+    width: 100%;
+    background: var(--turf-mid);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .pool-search::placeholder { color: var(--ink-faint); }
+  .pos-filters { display: flex; gap: 5px; flex-wrap: wrap; }
+  .pos-filter {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 6px;
+  }
+  .pos-filter.active { background: var(--ink); color: var(--turf); border-color: var(--ink); }
+
+  .pool-list { max-height: min(480px, 55vh); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .pool-row {
+    display: grid;
+    grid-template-columns: 30px 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: none;
+    width: 100%;
+    text-align: left;
+    color: var(--ink);
+  }
+  .pool-row:hover { background: var(--card-2); }
+  .pool-row:disabled { opacity: 0.35; cursor: default; }
+  .pool-row:disabled:hover { background: none; }
+  .pool-rank { font-size: 10.5px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .pool-name-wrap { min-width: 0; }
+  .pool-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pool-team { font-size: 10px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  .pool-adp { font-size: 11px; color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; text-align: right; }
+
+  .empty-note { padding: 24px 16px; text-align: center; color: var(--ink-faint); font-size: 12.5px; }
+
+  @media (max-width: 640px) {
+    /* iOS Safari auto-zooms on focusing an input under 16px — keep it at 16px. */
+    .pool-search { font-size: 16px; padding: 10px 12px; }
+    .pool-row { padding: 10px 12px; }
+    .pos-filter { padding: 6px 10px; font-size: 11px; }
+    .roster-row { padding: 8px 8px; min-height: 38px; }
+  }
+
+  .footer-note {
+    margin-top: 26px;
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    letter-spacing: 0.03em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cell.current { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="team-picker-overlay" id="teamPickerOverlay">
+  <div class="team-picker-card">
+    <div class="eyebrow">Mock Draft Simulator</div>
+    <h2>Who's drafting?</h2>
+    <div class="sub">Pick your team to draft it yourself &mdash; the CPU drafts for the other 11 teams using real ADP, roster needs, and this league's keepers. Your pick is remembered on this device.</div>
+    <div class="team-picker-grid" id="teamPickerGrid"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="brand">
+      <div class="eyebrow">Mock Draft Simulator</div>
+      <h1>Draft Room</h1>
+      <div class="sub">12-team keeper league &middot; snake format &middot; full PPR</div>
+    </div>
+    <div class="league-tags">
+      <div class="league-tag">15 rounds</div>
+      <div class="league-tag">12 keepers locked</div>
+      <div class="league-tag">ADP snapshot: Aug 20, 2026</div>
+      <button class="league-tag who-tag" id="whoAmITag" type="button" style="display:none;"></button>
+    </div>
+  </div>
+
+  <div class="clock" id="clockBar">
+    <div class="clock-left">
+      <div class="pick-badge">
+        <div class="rp" id="clockRound">RD 1</div>
+        <div class="num" id="clockPick">1</div>
+      </div>
+      <div class="clock-status">
+        <div class="label" id="clockLabel">On the clock</div>
+        <div class="owner" id="clockOwner">&mdash;</div>
+        <div class="keeper-note" id="clockKeeperNote" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="clock-actions">
+      <label class="toggle"><input type="checkbox" id="autoplayToggle"> Autoplay</label>
+      <button class="btn" id="simBtn">Simulate to my pick</button>
+      <button class="btn primary" id="stepBtn">Simulate 1 pick</button>
+      <button class="btn" id="simAllBtn">Simulate entire draft</button>
+      <button class="btn ghost" id="resetBtn">Reset draft</button>
+    </div>
+    <div class="snake-track" id="snakeTrack" style="width:100%;"></div>
+  </div>
+
+  <div class="layout">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Draft Board</h2>
+        <div class="count" id="boardProgress">Pick 1 of 180</div>
+      </div>
+      <div class="board-scroll">
+        <table class="board" id="boardTable"></table>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Available Players</h2>
+          <div class="count" id="poolCount"></div>
+        </div>
+        <div class="pool-controls">
+          <input class="pool-search" id="poolSearch" type="text" placeholder="Search players&hellip;">
+          <div class="pos-filters" id="posFilters"></div>
+        </div>
+        <div class="pool-list" id="poolList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Your Team &mdash; <span id="yourTeamNameLabel">&mdash;</span></h2>
+          <div class="panel-head-right">
+            <span class="grade-badge sm" id="yourGradeBadge" style="display:none;"></span>
+            <div class="count" id="rosterCount">0 / 15</div>
+          </div>
+        </div>
+        <div class="roster-bye-warn" id="rosterByeWarn" style="display:none;"></div>
+        <div class="roster-list" id="rosterList"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="panel grades-panel">
+    <div class="panel-head">
+      <h2>Draft Grades</h2>
+      <div class="count" id="gradesNote">Live &middot; updates as picks are made</div>
+    </div>
+    <div class="grades-scroll">
+      <table class="grades-table" id="gradesTable"></table>
+    </div>
+  </div>
+
+  <div class="panel grades-panel">
+    <div class="panel-head">
+      <h2>Power Rankings &amp; Season Outlook</h2>
+      <div class="count" id="powerNote">Live &middot; updates as picks are made</div>
+    </div>
+    <div class="grades-scroll">
+      <table class="power-table" id="powerTable"></table>
+    </div>
+  </div>
+
+  <div class="footer-note">ADP sourced from FantasyFootballCalculator &amp; FantasyPros consensus, Aug 13&ndash;20 2026 snapshot &middot; for mock draft practice only. Projected records assume a 14-game regular season and independent per-game odds vs. a league-average opponent &mdash; not a simulated head-to-head schedule.</div>
+
+</div>
+
+<script>
+const PLAYERS = [{"rank": 1, "name": "Bijan Robinson", "team": "ATL", "pos": "RB", "posRk": "RB1", "adp": 1.7, "bye": 11}, {"rank": 2, "name": "Jahmyr Gibbs", "team": "DET", "pos": "RB", "posRk": "RB2", "adp": 1.8, "bye": 6}, {"rank": 3, "name": "Puka Nacua", "team": "LAR", "pos": "WR", "posRk": "WR1", "adp": 3.0, "bye": 11}, {"rank": 4, "name": "Ja'Marr Chase", "team": "CIN", "pos": "WR", "posRk": "WR2", "adp": 3.9, "bye": 6}, {"rank": 5, "name": "Jaxon Smith-Njigba", "team": "SEA", "pos": "WR", "posRk": "WR3", "adp": 5.4, "bye": 11}, {"rank": 6, "name": "Amon-Ra St. Brown", "team": "DET", "pos": "WR", "posRk": "WR4", "adp": 6.3, "bye": 6}, {"rank": 7, "name": "Christian McCaffrey", "team": "SF", "pos": "RB", "posRk": "RB3", "adp": 6.5, "bye": 8}, {"rank": 8, "name": "Jonathan Taylor", "team": "IND", "pos": "RB", "posRk": "RB4", "adp": 7.4, "bye": 13}, {"rank": 9, "name": "Drake London", "team": "ATL", "pos": "WR", "posRk": "WR5", "adp": 10.0, "bye": 11}, {"rank": 10, "name": "De'Von Achane", "team": "MIA", "pos": "RB", "posRk": "RB5", "adp": 10.2, "bye": 6}, {"rank": 11, "name": "CeeDee Lamb", "team": "DAL", "pos": "WR", "posRk": "WR6", "adp": 10.6, "bye": 14}, {"rank": 12, "name": "Justin Jefferson", "team": "MIN", "pos": "WR", "posRk": "WR7", "adp": 11.7, "bye": 6}, {"rank": 13, "name": "James Cook III", "team": "BUF", "pos": "RB", "posRk": "RB6", "adp": 12.5, "bye": 7}, {"rank": 14, "name": "Chase Brown", "team": "CIN", "pos": "RB", "posRk": "RB7", "adp": 13.5, "bye": 6}, {"rank": 15, "name": "Rashee Rice", "team": "KC", "pos": "WR", "posRk": "WR8", "adp": 14.8, "bye": 5}, {"rank": 16, "name": "Ashton Jeanty", "team": "LV", "pos": "RB", "posRk": "RB8", "adp": 15.3, "bye": 13}, {"rank": 17, "name": "Derrick Henry", "team": "BAL", "pos": "RB", "posRk": "RB9", "adp": 17.6, "bye": 13}, {"rank": 18, "name": "A.J. Brown", "team": "NE", "pos": "WR", "posRk": "WR9", "adp": 17.9, "bye": 11}, {"rank": 19, "name": "George Pickens", "team": "DAL", "pos": "WR", "posRk": "WR10", "adp": 19.4, "bye": 14}, {"rank": 20, "name": "Saquon Barkley", "team": "PHI", "pos": "RB", "posRk": "RB10", "adp": 20.2, "bye": 10}, {"rank": 21, "name": "Chris Olave", "team": "NO", "pos": "WR", "posRk": "WR11", "adp": 21.0, "bye": 8}, {"rank": 22, "name": "Nico Collins", "team": "HOU", "pos": "WR", "posRk": "WR12", "adp": 21.4, "bye": 8}, {"rank": 23, "name": "Omarion Hampton", "team": "LAC", "pos": "RB", "posRk": "RB11", "adp": 22.3, "bye": 7}, {"rank": 24, "name": "Kenneth Walker III", "team": "KC", "pos": "RB", "posRk": "RB12", "adp": 22.6, "bye": 5}, {"rank": 25, "name": "Zay Flowers", "team": "BAL", "pos": "WR", "posRk": "WR13", "adp": 24.5, "bye": 13}, {"rank": 26, "name": "Garrett Wilson", "team": "NYJ", "pos": "WR", "posRk": "WR14", "adp": 26.3, "bye": 13}, {"rank": 27, "name": "Malik Nabers", "team": "NYG", "pos": "WR", "posRk": "WR15", "adp": 27.2, "bye": 8}, {"rank": 28, "name": "Jeremiyah Love", "team": "ARI", "pos": "RB", "posRk": "RB13", "adp": 28.9, "bye": 14}, {"rank": 29, "name": "DeVonta Smith", "team": "PHI", "pos": "WR", "posRk": "WR16", "adp": 29.0, "bye": 10}, {"rank": 30, "name": "Trey McBride", "team": "ARI", "pos": "TE", "posRk": "TE1", "adp": 29.0, "bye": 14}, {"rank": 31, "name": "Josh Jacobs", "team": "GB", "pos": "RB", "posRk": "RB14", "adp": 31.4, "bye": 11}, {"rank": 32, "name": "Kyren Williams", "team": "LAR", "pos": "RB", "posRk": "RB15", "adp": 31.5, "bye": 11}, {"rank": 33, "name": "Breece Hall", "team": "NYJ", "pos": "RB", "posRk": "RB16", "adp": 32.1, "bye": 13}, {"rank": 34, "name": "Josh Allen", "team": "BUF", "pos": "QB", "posRk": "QB1", "adp": 33.1, "bye": 7}, {"rank": 35, "name": "Tetairoa McMillan", "team": "CAR", "pos": "WR", "posRk": "WR17", "adp": 33.3, "bye": 5}, {"rank": 36, "name": "Cam Skattebo", "team": "NYG", "pos": "RB", "posRk": "RB17", "adp": 35.0, "bye": 8}, {"rank": 37, "name": "Brock Bowers", "team": "LV", "pos": "TE", "posRk": "TE2", "adp": 35.9, "bye": 13}, {"rank": 38, "name": "Tee Higgins", "team": "CIN", "pos": "WR", "posRk": "WR18", "adp": 35.9, "bye": 6}, {"rank": 39, "name": "Emeka Egbuka", "team": "TB", "pos": "WR", "posRk": "WR19", "adp": 37.1, "bye": 10}, {"rank": 40, "name": "Javonte Williams", "team": "DAL", "pos": "RB", "posRk": "RB18", "adp": 37.4, "bye": 14}, {"rank": 41, "name": "Ladd McConkey", "team": "LAC", "pos": "WR", "posRk": "WR20", "adp": 37.7, "bye": 7}, {"rank": 42, "name": "Davante Adams", "team": "LAR", "pos": "WR", "posRk": "WR21", "adp": 41.4, "bye": 11}, {"rank": 43, "name": "Travis Etienne Jr.", "team": "NO", "pos": "RB", "posRk": "RB19", "adp": 41.8, "bye": 8}, {"rank": 44, "name": "Jameson Williams", "team": "DET", "pos": "WR", "posRk": "WR22", "adp": 43.7, "bye": 6}, {"rank": 45, "name": "Jaylen Waddle", "team": "DEN", "pos": "WR", "posRk": "WR23", "adp": 45.7, "bye": 10}, {"rank": 46, "name": "Bucky Irving", "team": "TB", "pos": "RB", "posRk": "RB20", "adp": 45.9, "bye": 10}, {"rank": 47, "name": "D'Andre Swift", "team": "CHI", "pos": "RB", "posRk": "RB21", "adp": 46.0, "bye": 10}, {"rank": 48, "name": "Terry McLaurin", "team": "WAS", "pos": "WR", "posRk": "WR24", "adp": 46.5, "bye": 7}, {"rank": 49, "name": "Rome Odunze", "team": "CHI", "pos": "WR", "posRk": "WR25", "adp": 49.1, "bye": 10}, {"rank": 50, "name": "DJ Moore", "team": "BUF", "pos": "WR", "posRk": "WR26", "adp": 49.9, "bye": 7}, {"rank": 51, "name": "Drake Maye", "team": "NE", "pos": "QB", "posRk": "QB2", "adp": 50.8, "bye": 11}, {"rank": 52, "name": "Quinshon Judkins", "team": "CLE", "pos": "RB", "posRk": "RB22", "adp": 51.8, "bye": 11}, {"rank": 53, "name": "Mike Evans", "team": "SF", "pos": "WR", "posRk": "WR27", "adp": 52.4, "bye": 8}, {"rank": 54, "name": "Bhayshul Tuten", "team": "JAX", "pos": "RB", "posRk": "RB23", "adp": 53.8, "bye": 7}, {"rank": 55, "name": "Joe Burrow", "team": "CIN", "pos": "QB", "posRk": "QB3", "adp": 56.6, "bye": 6}, {"rank": 56, "name": "Colston Loveland", "team": "CHI", "pos": "TE", "posRk": "TE3", "adp": 56.7, "bye": 10}, {"rank": 57, "name": "Lamar Jackson", "team": "BAL", "pos": "QB", "posRk": "QB4", "adp": 57.0, "bye": 13}, {"rank": 58, "name": "David Montgomery", "team": "HOU", "pos": "RB", "posRk": "RB24", "adp": 57.9, "bye": 8}, {"rank": 59, "name": "Christian Watson", "team": "GB", "pos": "WR", "posRk": "WR28", "adp": 58.4, "bye": 11}, {"rank": 60, "name": "Alec Pierce", "team": "IND", "pos": "WR", "posRk": "WR29", "adp": 59.3, "bye": 13}, {"rank": 61, "name": "Luther Burden III", "team": "CHI", "pos": "WR", "posRk": "WR30", "adp": 59.9, "bye": 10}, {"rank": 62, "name": "TreVeyon Henderson", "team": "NE", "pos": "RB", "posRk": "RB25", "adp": 60.4, "bye": 11}, {"rank": 63, "name": "Jaylen Warren", "team": "PIT", "pos": "RB", "posRk": "RB26", "adp": 60.8, "bye": 9}, {"rank": 64, "name": "Courtland Sutton", "team": "DEN", "pos": "WR", "posRk": "WR31", "adp": 61.0, "bye": 10}, {"rank": 65, "name": "Tyler Warren", "team": "IND", "pos": "TE", "posRk": "TE4", "adp": 64.5, "bye": 13}, {"rank": 66, "name": "DK Metcalf", "team": "PIT", "pos": "WR", "posRk": "WR32", "adp": 64.7, "bye": 9}, {"rank": 67, "name": "Parker Washington", "team": "JAX", "pos": "WR", "posRk": "WR33", "adp": 64.8, "bye": 7}, {"rank": 68, "name": "Dak Prescott", "team": "DAL", "pos": "QB", "posRk": "QB5", "adp": 65.9, "bye": 14}, {"rank": 69, "name": "Marvin Harrison Jr.", "team": "ARI", "pos": "WR", "posRk": "WR34", "adp": 66.1, "bye": 14}, {"rank": 70, "name": "Tony Pollard", "team": "TEN", "pos": "RB", "posRk": "RB27", "adp": 67.3, "bye": 9}, {"rank": 71, "name": "Rhamondre Stevenson", "team": "NE", "pos": "RB", "posRk": "RB28", "adp": 70.5, "bye": 11}, {"rank": 72, "name": "Brian Thomas Jr.", "team": "JAX", "pos": "WR", "posRk": "WR35", "adp": 71.4, "bye": 7}, {"rank": 73, "name": "Jayden Daniels", "team": "WAS", "pos": "QB", "posRk": "QB6", "adp": 73.1, "bye": 7}, {"rank": 74, "name": "Carnell Tate", "team": "TEN", "pos": "WR", "posRk": "WR36", "adp": 74.2, "bye": 9}, {"rank": 75, "name": "Michael Pittman Jr.", "team": "PIT", "pos": "WR", "posRk": "WR37", "adp": 74.4, "bye": 9}, {"rank": 76, "name": "Chuba Hubbard", "team": "CAR", "pos": "RB", "posRk": "RB29", "adp": 74.9, "bye": 5}, {"rank": 77, "name": "Rico Dowdle", "team": "PIT", "pos": "RB", "posRk": "RB30", "adp": 75.9, "bye": 9}, {"rank": 78, "name": "Kyle Pitts Sr.", "team": "ATL", "pos": "TE", "posRk": "TE5", "adp": 76.4, "bye": 11}, {"rank": 79, "name": "Michael Wilson", "team": "ARI", "pos": "WR", "posRk": "WR38", "adp": 76.7, "bye": 14}, {"rank": 80, "name": "Matthew Stafford", "team": "LAR", "pos": "QB", "posRk": "QB7", "adp": 77.8, "bye": 11}, {"rank": 81, "name": "Harold Fannin Jr.", "team": "CLE", "pos": "TE", "posRk": "TE6", "adp": 79.0, "bye": 11}, {"rank": 82, "name": "Jalen Hurts", "team": "PHI", "pos": "QB", "posRk": "QB8", "adp": 80.4, "bye": 10}, {"rank": 83, "name": "Chris Godwin Jr.", "team": "TB", "pos": "WR", "posRk": "WR39", "adp": 81.0, "bye": 10}, {"rank": 84, "name": "Josh Downs", "team": "IND", "pos": "WR", "posRk": "WR40", "adp": 81.8, "bye": 13}, {"rank": 85, "name": "Jadarian Price", "team": "SEA", "pos": "RB", "posRk": "RB31", "adp": 82.1, "bye": 11}, {"rank": 86, "name": "RJ Harvey", "team": "DEN", "pos": "RB", "posRk": "RB32", "adp": 83.3, "bye": 10}, {"rank": 87, "name": "Seattle D/ST", "team": "SEA", "pos": "DEF", "posRk": "DEF1", "adp": 83.4, "bye": 11}, {"rank": 88, "name": "Wan'Dale Robinson", "team": "TEN", "pos": "WR", "posRk": "WR41", "adp": 85.9, "bye": 9}, {"rank": 89, "name": "Denver D/ST", "team": "DEN", "pos": "DEF", "posRk": "DEF2", "adp": 87.8, "bye": 10}, {"rank": 90, "name": "Caleb Williams", "team": "CHI", "pos": "QB", "posRk": "QB9", "adp": 88.1, "bye": 10}, {"rank": 91, "name": "Jakobi Meyers", "team": "JAX", "pos": "WR", "posRk": "WR42", "adp": 88.6, "bye": 7}, {"rank": 92, "name": "Sam LaPorta", "team": "DET", "pos": "TE", "posRk": "TE7", "adp": 89.0, "bye": 6}, {"rank": 93, "name": "Brock Purdy", "team": "SF", "pos": "QB", "posRk": "QB10", "adp": 89.1, "bye": 8}, {"rank": 94, "name": "Kenny Gainwell", "team": "TB", "pos": "RB", "posRk": "RB33", "adp": 89.7, "bye": 10}, {"rank": 95, "name": "Stefon Diggs", "team": "WAS", "pos": "WR", "posRk": "WR43", "adp": 91.8, "bye": 7}, {"rank": 96, "name": "Quentin Johnston", "team": "LAC", "pos": "WR", "posRk": "WR44", "adp": 92.4, "bye": 7}, {"rank": 97, "name": "Trevor Lawrence", "team": "JAX", "pos": "QB", "posRk": "QB11", "adp": 93.2, "bye": 7}, {"rank": 98, "name": "Jayden Reed", "team": "GB", "pos": "WR", "posRk": "WR45", "adp": 94.0, "bye": 11}, {"rank": 99, "name": "J.K. Dobbins", "team": "DEN", "pos": "RB", "posRk": "RB34", "adp": 96.5, "bye": 10}, {"rank": 100, "name": "Houston D/ST", "team": "HOU", "pos": "DEF", "posRk": "DEF3", "adp": 96.7, "bye": 8}, {"rank": 101, "name": "Jordan Addison", "team": "MIN", "pos": "WR", "posRk": "WR46", "adp": 98.5, "bye": 6}, {"rank": 102, "name": "Keon Coleman", "team": "BUF", "pos": "WR", "posRk": "WR47", "adp": 98.6, "bye": 7}, {"rank": 103, "name": "Aaron Jones Sr.", "team": "MIN", "pos": "RB", "posRk": "RB35", "adp": 100.3, "bye": 6}, {"rank": 104, "name": "Jared Goff", "team": "DET", "pos": "QB", "posRk": "QB12", "adp": 100.7, "bye": 6}, {"rank": 105, "name": "Patrick Mahomes", "team": "KC", "pos": "QB", "posRk": "QB13", "adp": 101.0, "bye": 5}, {"rank": 106, "name": "Khalil Shakir", "team": "BUF", "pos": "WR", "posRk": "WR48", "adp": 101.5, "bye": 7}, {"rank": 107, "name": "Tucker Kraft", "team": "GB", "pos": "TE", "posRk": "TE8", "adp": 103.8, "bye": 11}, {"rank": 108, "name": "Jordyn Tyson", "team": "NO", "pos": "WR", "posRk": "WR49", "adp": 104.1, "bye": 8}, {"rank": 109, "name": "Jonathon Brooks", "team": "CAR", "pos": "RB", "posRk": "RB36", "adp": 106.4, "bye": 5}, {"rank": 110, "name": "Justin Herbert", "team": "LAC", "pos": "QB", "posRk": "QB14", "adp": 106.4, "bye": 7}, {"rank": 111, "name": "Xavier Worthy", "team": "KC", "pos": "WR", "posRk": "WR50", "adp": 106.5, "bye": 5}, {"rank": 112, "name": "LA Rams D/ST", "team": "LAR", "pos": "DEF", "posRk": "DEF4", "adp": 107.3, "bye": 11}, {"rank": 113, "name": "Rachaad White", "team": "WAS", "pos": "RB", "posRk": "RB37", "adp": 108.1, "bye": 7}, {"rank": 114, "name": "Travis Kelce", "team": "KC", "pos": "TE", "posRk": "TE9", "adp": 109.0, "bye": 5}, {"rank": 115, "name": "Matthew Golden", "team": "GB", "pos": "WR", "posRk": "WR51", "adp": 109.4, "bye": 11}, {"rank": 116, "name": "Minnesota D/ST", "team": "MIN", "pos": "DEF", "posRk": "DEF5", "adp": 110.1, "bye": 6}, {"rank": 117, "name": "Dallas Goedert", "team": "PHI", "pos": "TE", "posRk": "TE10", "adp": 111.9, "bye": 10}, {"rank": 118, "name": "Romeo Doubs", "team": "NE", "pos": "WR", "posRk": "WR52", "adp": 112.1, "bye": 11}, {"rank": 119, "name": "Deebo Samuel Sr.", "team": "SF", "pos": "WR", "posRk": "WR53", "adp": 113.1, "bye": 8}, {"rank": 120, "name": "Kyle Monangai", "team": "CHI", "pos": "RB", "posRk": "RB38", "adp": 113.6, "bye": 10}, {"rank": 121, "name": "Makai Lemon", "team": "PHI", "pos": "WR", "posRk": "WR54", "adp": 114.5, "bye": 10}, {"rank": 122, "name": "Bo Nix", "team": "DEN", "pos": "QB", "posRk": "QB15", "adp": 114.7, "bye": 10}, {"rank": 123, "name": "George Kittle", "team": "SF", "pos": "TE", "posRk": "TE11", "adp": 117.5, "bye": 8}, {"rank": 124, "name": "Jaxson Dart", "team": "NYG", "pos": "QB", "posRk": "QB16", "adp": 118.1, "bye": 8}, {"rank": 125, "name": "Jacory Croskey-Merritt", "team": "WAS", "pos": "RB", "posRk": "RB39", "adp": 118.1, "bye": 7}, {"rank": 126, "name": "Jalen Coker", "team": "CAR", "pos": "WR", "posRk": "WR55", "adp": 120.6, "bye": 5}, {"rank": 127, "name": "Blake Corum", "team": "LAR", "pos": "RB", "posRk": "RB40", "adp": 121.2, "bye": 11}, {"rank": 128, "name": "KC Concepcion", "team": "CLE", "pos": "WR", "posRk": "WR56", "adp": 122.1, "bye": 11}, {"rank": 129, "name": "Jordan Mason", "team": "MIN", "pos": "RB", "posRk": "RB41", "adp": 122.1, "bye": 6}, {"rank": 130, "name": "New England D/ST", "team": "NE", "pos": "DEF", "posRk": "DEF6", "adp": 127.1, "bye": 11}, {"rank": 131, "name": "Mark Andrews", "team": "BAL", "pos": "TE", "posRk": "TE12", "adp": 127.9, "bye": 13}, {"rank": 132, "name": "Jerry Jeudy", "team": "CLE", "pos": "WR", "posRk": "WR58", "adp": 128.1, "bye": 11}, {"rank": 133, "name": "Rashid Shaheed", "team": "SEA", "pos": "WR", "posRk": "WR59", "adp": 129.0, "bye": 11}, {"rank": 134, "name": "Baker Mayfield", "team": "TB", "pos": "QB", "posRk": "QB17", "adp": 129.7, "bye": 10}, {"rank": 135, "name": "Brandon Aubrey", "team": "DAL", "pos": "PK", "posRk": "PK1", "adp": 129.8, "bye": 14}, {"rank": 136, "name": "Detroit D/ST", "team": "DET", "pos": "DEF", "posRk": "DEF7", "adp": 130.9, "bye": 6}, {"rank": 137, "name": "Pittsburgh D/ST", "team": "PIT", "pos": "DEF", "posRk": "DEF8", "adp": 132.4, "bye": 9}, {"rank": 138, "name": "Tre Tucker", "team": "LV", "pos": "WR", "posRk": "WR60", "adp": 133.5, "bye": 13}, {"rank": 139, "name": "Jake Ferguson", "team": "DAL", "pos": "TE", "posRk": "TE13", "adp": 133.6, "bye": 14}, {"rank": 140, "name": "Tyjae Spears", "team": "TEN", "pos": "RB", "posRk": "RB42", "adp": 133.8, "bye": 9}, {"rank": 141, "name": "Kyler Murray", "team": "ARI", "pos": "QB", "posRk": "QB18", "adp": 134.0, "bye": 14}, {"rank": 142, "name": "Tyler Shough", "team": "NO", "pos": "QB", "posRk": "QB19", "adp": 134.4, "bye": 8}, {"rank": 143, "name": "Jalen McMillan", "team": "TB", "pos": "WR", "posRk": "WR61", "adp": 135.6, "bye": 10}, {"rank": 144, "name": "Philadelphia D/ST", "team": "PHI", "pos": "DEF", "posRk": "DEF9", "adp": 135.8, "bye": 10}, {"rank": 145, "name": "Zach Charbonnet", "team": "SEA", "pos": "RB", "posRk": "RB43", "adp": 136.9, "bye": 11}, {"rank": 146, "name": "Isaiah Likely", "team": "NYG", "pos": "TE", "posRk": "TE14", "adp": 137.5, "bye": 8}, {"rank": 147, "name": "Theo Wease Jr.", "team": "MIA", "pos": "WR", "posRk": "WR62", "adp": 137.8, "bye": 6}, {"rank": 148, "name": "Kimani Vidal", "team": "LAC", "pos": "RB", "posRk": "RB44", "adp": 138.6, "bye": 7}, {"rank": 149, "name": "Juwan Johnson", "team": "NO", "pos": "TE", "posRk": "TE15", "adp": 140.4, "bye": 8}, {"rank": 150, "name": "Jason Myers", "team": "SEA", "pos": "PK", "posRk": "PK2", "adp": 141.0, "bye": 11}, {"rank": 151, "name": "Sam Darnold", "team": "SEA", "pos": "QB", "posRk": "QB20", "adp": 141.3, "bye": 11}, {"rank": 152, "name": "Ka'imi Fairbairn", "team": "HOU", "pos": "PK", "posRk": "PK3", "adp": 141.9, "bye": 8}, {"rank": 153, "name": "Oronde Gadsden", "team": "LAC", "pos": "TE", "posRk": "TE16", "adp": 142.0, "bye": 7}, {"rank": 154, "name": "Denzel Boston", "team": "CLE", "pos": "WR", "posRk": "WR63", "adp": 142.4, "bye": 11}, {"rank": 155, "name": "Emari Demercado", "team": "KC", "pos": "RB", "posRk": "RB45", "adp": 142.8, "bye": 5}, {"rank": 156, "name": "Alvin Kamara", "team": "NO", "pos": "RB", "posRk": "RB46", "adp": 143.0, "bye": 8}, {"rank": 157, "name": "Cameron Dicker", "team": "LAC", "pos": "PK", "posRk": "PK4", "adp": 143.1, "bye": 7}, {"rank": 158, "name": "Calvin Ridley", "team": "TEN", "pos": "WR", "posRk": "WR64", "adp": 143.3, "bye": 9}, {"rank": 159, "name": "LA Chargers D/ST", "team": "LAC", "pos": "DEF", "posRk": "DEF10", "adp": 143.6, "bye": 7}, {"rank": 160, "name": "Jordan Love", "team": "GB", "pos": "QB", "posRk": "QB21", "adp": 144.1, "bye": 11}, {"rank": 161, "name": "Jordan James", "team": "SF", "pos": "RB", "posRk": "RB47", "adp": 144.2, "bye": 8}, {"rank": 162, "name": "Jake Elliott", "team": "PHI", "pos": "PK", "posRk": "PK5", "adp": 145.0, "bye": 10}, {"rank": 163, "name": "De'Zhaun Stribling", "team": "SF", "pos": "WR", "posRk": "WR65", "adp": 145.1, "bye": 8}, {"rank": 164, "name": "Jake Bates", "team": "DET", "pos": "PK", "posRk": "PK6", "adp": 145.4, "bye": 6}, {"rank": 165, "name": "Jauan Jennings", "team": "MIN", "pos": "WR", "posRk": "WR66", "adp": 145.9, "bye": 6}, {"rank": 166, "name": "Rashod Bateman", "team": "BAL", "pos": "WR", "posRk": "WR67", "adp": 145.9, "bye": 13}, {"rank": 167, "name": "San Francisco D/ST", "team": "SF", "pos": "DEF", "posRk": "DEF11", "adp": 147.1, "bye": 8}, {"rank": 168, "name": "Cyrus Allen", "team": "KC", "pos": "WR", "posRk": "WR68", "adp": 147.4, "bye": 5}, {"rank": 169, "name": "Joey Slye", "team": "TEN", "pos": "PK", "posRk": "PK7", "adp": 148.0, "bye": 9}, {"rank": 170, "name": "Tyrone Tracy Jr.", "team": "NYG", "pos": "RB", "posRk": "RB48", "adp": 148.0, "bye": 8}, {"rank": 171, "name": "Woody Marks", "team": "HOU", "pos": "RB", "posRk": "RB49", "adp": 148.3, "bye": 8}, {"rank": 172, "name": "Malik Washington", "team": "MIA", "pos": "WR", "posRk": "WR69", "adp": 149.6, "bye": 6}, {"rank": 173, "name": "Dalton Kincaid", "team": "BUF", "pos": "TE", "posRk": "TE17", "adp": 151.6, "bye": 7}, {"rank": 174, "name": "Cooper Kupp", "team": "SEA", "pos": "WR", "posRk": "WR70", "adp": 151.7, "bye": 11}, {"rank": 175, "name": "Mike Washington Jr.", "team": "LV", "pos": "RB", "posRk": "RB50", "adp": 152.2, "bye": 13}, {"rank": 176, "name": "Harrison Mevis", "team": "LAR", "pos": "PK", "posRk": "PK8", "adp": 152.6, "bye": 11}, {"rank": 177, "name": "Chimere Dike", "team": "TEN", "pos": "WR", "posRk": "WR71", "adp": 152.7, "bye": 9}, {"rank": 178, "name": "Jalen Nailor", "team": "LV", "pos": "WR", "posRk": "WR72", "adp": 152.7, "bye": 13}, {"rank": 179, "name": "Cam Little", "team": "JAX", "pos": "PK", "posRk": "PK9", "adp": 154.4, "bye": 7}, {"rank": 180, "name": "Tyler Loop", "team": "BAL", "pos": "PK", "posRk": "PK10", "adp": 154.6, "bye": 13}, {"rank": 181, "name": "Chase McLaughlin", "team": "TB", "pos": "PK", "posRk": "PK11", "adp": 155.1, "bye": 10}, {"rank": 182, "name": "Green Bay D/ST", "team": "GB", "pos": "DEF", "posRk": "DEF12", "adp": 155.5, "bye": 11}, {"rank": 183, "name": "Isiah Pacheco", "team": "DET", "pos": "RB", "posRk": "RB51", "adp": 155.7, "bye": 6}, {"rank": 184, "name": "Pat Bryant", "team": "DEN", "pos": "WR", "posRk": "WR73", "adp": 156.3, "bye": 10}, {"rank": 185, "name": "Jacksonville D/ST", "team": "JAX", "pos": "DEF", "posRk": "DEF13", "adp": 156.5, "bye": 7}, {"rank": 186, "name": "Braelon Allen", "team": "NYJ", "pos": "RB", "posRk": "RB52", "adp": 156.6, "bye": 13}, {"rank": 187, "name": "Fernando Mendoza", "team": "LV", "pos": "QB", "posRk": "QB22", "adp": 156.8, "bye": 13}, {"rank": 188, "name": "Chris Rodriguez Jr.", "team": "JAX", "pos": "RB", "posRk": "RB53", "adp": 157.0, "bye": 7}, {"rank": 189, "name": "Chris Boswell", "team": "PIT", "pos": "PK", "posRk": "PK12", "adp": 157.0, "bye": 9}, {"rank": 190, "name": "AJ Barner", "team": "SEA", "pos": "TE", "posRk": "TE18", "adp": 157.0, "bye": 11}, {"rank": 191, "name": "Trey Smack", "team": "GB", "pos": "PK", "posRk": "PK13", "adp": 157.0, "bye": 11}, {"rank": 192, "name": "Dalton Schultz", "team": "HOU", "pos": "TE", "posRk": "TE19", "adp": 157.6, "bye": 8}, {"rank": 193, "name": "James Conner", "team": "ARI", "pos": "RB", "posRk": "RB54", "adp": 157.8, "bye": 14}, {"rank": 194, "name": "Tyler Allgeier", "team": "ARI", "pos": "RB", "posRk": "RB55", "adp": 157.9, "bye": 14}, {"rank": 195, "name": "Hunter Henry", "team": "NE", "pos": "TE", "posRk": "TE20", "adp": 158.4, "bye": 11}, {"rank": 196, "name": "Kaelon Black", "team": "SF", "pos": "RB", "posRk": "RB56", "adp": 158.4, "bye": 8}, {"rank": 197, "name": "Buffalo D/ST", "team": "BUF", "pos": "DEF", "posRk": "DEF14", "adp": 158.9, "bye": 7}, {"rank": 198, "name": "Daniel Jones", "team": "IND", "pos": "QB", "posRk": "QB23", "adp": 159.1, "bye": 13}, {"rank": 199, "name": "Tank Dell", "team": "HOU", "pos": "WR", "posRk": "WR74", "adp": 159.2, "bye": 8}];
+const KEEPERS = [{"pick": 1, "owner": "Jeff", "round": 11, "name": "Kyle Pitts Sr.", "team": "ATL", "pos": "TE", "adp": 76.4, "rank": 78, "bye": 11}, {"pick": 2, "owner": "Hardy", "round": 1, "name": "Christian McCaffrey", "team": "SF", "pos": "RB", "adp": 6.5, "rank": 7, "bye": 8}, {"pick": 3, "owner": "Shane", "round": 4, "name": "Omarion Hampton", "team": "LAC", "pos": "RB", "adp": 22.3, "rank": 23, "bye": 7}, {"pick": 4, "owner": "Dan P", "round": 7, "name": "Chris Olave", "team": "NO", "pos": "WR", "adp": 21.0, "rank": 21, "bye": 8}, {"pick": 5, "owner": "Bill", "round": 9, "name": "Travis Etienne Jr.", "team": "NO", "pos": "RB", "adp": 41.8, "rank": 43, "bye": 8}, {"pick": 6, "owner": "Bobby", "round": 7, "name": "Emeka Egbuka", "team": "TB", "pos": "WR", "adp": 37.1, "rank": 39, "bye": 10}, {"pick": 7, "owner": "Andy", "round": 3, "name": "Jaxon Smith-Njigba", "team": "SEA", "pos": "WR", "adp": 5.4, "rank": 5, "bye": 11}, {"pick": 8, "owner": "Alex", "round": 10, "name": "Colston Loveland", "team": "CHI", "pos": "TE", "adp": 56.7, "rank": 56, "bye": 10}, {"pick": 9, "owner": "Shawn", "round": 1, "name": "Bijan Robinson", "team": "ATL", "pos": "RB", "adp": 1.7, "rank": 1, "bye": 11}, {"pick": 10, "owner": "Dan H", "round": 9, "name": "Javonte Williams", "team": "DAL", "pos": "RB", "adp": 37.4, "rank": 40, "bye": 14}, {"pick": 11, "owner": "Scotty", "round": 5, "name": "Rashee Rice", "team": "KC", "pos": "WR", "adp": 14.8, "rank": 15, "bye": 5}, {"pick": 12, "owner": "Chris", "round": 1, "name": "Jahmyr Gibbs", "team": "DET", "pos": "RB", "adp": 1.8, "rank": 2, "bye": 6}];
+
+const TEAM_ORDER = ["Jeff","Hardy","Shane","Dan P","Bill","Bobby","Andy","Alex","Shawn","Dan H","Scotty","Chris"];
+// Each person who opens this page picks which team is theirs — the CPU
+// drafts every other team. Nothing is shared between viewers; it's a solo
+// mock draft against the computer, remembered locally per device.
+const STORAGE_KEY = "ffDraftRoom2026_myTeam";
+let YOU = null;
+const NUM_TEAMS = 12;
+const NUM_ROUNDS = 15;
+
+// Roster template shared by every team.
+const STARTER_SLOTS = ["QB","RB","RB","WR","WR","TE","FLEX","DEF","PK"];
+const BENCH_SLOTS = 5;
+const FLEX_ELIGIBLE = ["RB","WR","TE"];
+const DEF_MIN_ROUND = 11; // this league doesn't see defenses go before round 11
+
+// ---------- Build player lookup + keeper map ----------
+const playerByName = {};
+PLAYERS.forEach(p => { p.id = p.name; playerByName[p.name] = p; });
+
+// keeperMap[pick][round] = player
+const keeperMap = {};
+const keeperPlayerNames = new Set();
+KEEPERS.forEach(k => {
+  keeperMap[k.pick] = keeperMap[k.pick] || {};
+  keeperMap[k.pick][k.round] = k;
+  keeperPlayerNames.add(k.name);
+});
+
+// Pinned CPU picks — overall pick number -> exact player name, for spots where
+// the real-world likely pick is known ahead of time (e.g. Jeff taking Chase 1.01).
+const FORCED_PICKS = {
+  1: "Ja'Marr Chase",
+};
+
+// ---------- Build the full pick sequence (snake) ----------
+// Each entry: {round, pickInRound(1-12), teamIdx(0-11), overall}
+const sequence = [];
+let overall = 1;
+for (let r = 1; r <= NUM_ROUNDS; r++) {
+  const order = (r % 2 === 1)
+    ? [...Array(NUM_TEAMS).keys()]
+    : [...Array(NUM_TEAMS).keys()].reverse();
+  order.forEach((teamIdx, i) => {
+    sequence.push({ round: r, teamIdx, overall });
+    overall++;
+  });
+}
+
+// ---------- State ----------
+let state = null;
+
+function freshRoster() {
+  const slots = STARTER_SLOTS.map(s => ({ slot: s, player: null }));
+  for (let i = 0; i < BENCH_SLOTS; i++) slots.push({ slot: "BN", player: null });
+  return slots;
+}
+
+function initState() {
+  state = {
+    picks: sequence.map(s => ({ ...s, player: null, isKeeper: false })),
+    rosters: TEAM_ORDER.map(() => freshRoster()),
+    available: PLAYERS.filter(p => !keeperPlayerNames.has(p.name)).slice().sort((a,b) => a.adp - b.adp),
+    cursor: 0, // index into state.picks of the next pick to resolve
+    posFilter: "ALL",
+    search: "",
+    autoplay: false,
+  };
+
+  // Pre-fill keepers immediately (they aren't "drafted live").
+  state.picks.forEach((pk, idx) => {
+    const teamPickNum = pk.teamIdx + 1;
+    const keeper = keeperMap[teamPickNum] && keeperMap[teamPickNum][pk.round];
+    if (keeper) {
+      const player = playerByName[keeper.name];
+      pk.player = player;
+      pk.isKeeper = true;
+      assignToRoster(pk.teamIdx, player);
+    }
+  });
+  advanceCursorPastFilled();
+}
+
+function assignToRoster(teamIdx, player) {
+  const roster = state.rosters[teamIdx];
+  // Try exact starter slot first.
+  let slot = roster.find(s => s.slot === player.pos && !s.player);
+  if (!slot && FLEX_ELIGIBLE.includes(player.pos)) {
+    slot = roster.find(s => s.slot === "FLEX" && !s.player);
+  }
+  if (!slot) {
+    slot = roster.find(s => s.slot === "BN" && !s.player);
+  }
+  if (!slot) {
+    // Roster somehow full — shouldn't happen with 15 rounds matching 15 slots.
+    slot = { slot: "BN", player: null };
+    roster.push(slot);
+  }
+  slot.player = player;
+}
+
+function advanceCursorPastFilled() {
+  while (state.cursor < state.picks.length && state.picks[state.cursor].player) {
+    state.cursor++;
+  }
+}
+
+function removeFromAvailable(player) {
+  const i = state.available.findIndex(p => p.name === player.name);
+  if (i >= 0) state.available.splice(i, 1);
+}
+
+function rosterNeeds(teamIdx) {
+  const roster = state.rosters[teamIdx];
+  return {
+    open: roster.filter(s => !s.player).map(s => s.slot),
+  };
+}
+
+function rosterPosCounts(teamIdx) {
+  const counts = {};
+  state.rosters[teamIdx].forEach(s => { if (s.player) counts[s.player.pos] = (counts[s.player.pos] || 0) + 1; });
+  return counts;
+}
+
+// Hard caps on how many of a position a CPU team will ever roster — bench
+// depth should go toward RB/WR, not a 3rd or 4th QB nobody would actually
+// draft. Once a team hits the cap, that position drops out of consideration
+// entirely (no "any open BN slot makes every player eligible" loophole).
+const MAX_ROSTER_COUNTS = { QB: 2, TE: 3, DEF: 1, PK: 1 };
+
+function pickForCPU(teamIdx, overall, round) {
+  const forcedName = FORCED_PICKS[overall];
+  if (forcedName) {
+    const forced = state.available.find(p => p.name === forcedName);
+    if (forced) return forced;
+  }
+
+  const needs = rosterNeeds(teamIdx).open;
+  const needSet = new Set(needs);
+  const posCounts = rosterPosCounts(teamIdx);
+
+  // Candidates whose position fits an open need (starter or flex or bench),
+  // and haven't already hit their roster cap.
+  const eligible = state.available.filter(p => {
+    const cap = MAX_ROSTER_COUNTS[p.pos];
+    if (cap !== undefined && (posCounts[p.pos] || 0) >= cap) return false;
+    if (needSet.has(p.pos)) return true;
+    if (needSet.has("FLEX") && FLEX_ELIGIBLE.includes(p.pos)) return true;
+    if (needSet.has("BN")) return true;
+    return false;
+  });
+
+  // Light guardrails: keep DEF/PK off the board until it's actually time for
+  // them in this league, on top of the hard caps above.
+  const startersOpen = needs.filter(s => s !== "BN").length;
+  let pool = eligible.filter(p => {
+    if (p.pos === "DEF" && round < DEF_MIN_ROUND) return false;
+    if (p.pos === "PK" && startersOpen > 2 && !needSet.has("PK")) return false;
+    return true;
+  });
+  if (pool.length === 0) {
+    pool = eligible.length ? eligible : state.available.filter(p => {
+      const cap = MAX_ROSTER_COUNTS[p.pos];
+      return !(cap !== undefined && (posCounts[p.pos] || 0) >= cap);
+    });
+  }
+  if (pool.length === 0) pool = state.available; // absolute last resort — should never actually hit
+
+  pool = pool.slice().sort((a,b) => a.adp - b.adp);
+  const top = pool.slice(0, 4);
+  if (top.length === 0) return state.available[0];
+
+  // Weighted random among top few for realism (not robotically deterministic).
+  const weights = [0.58, 0.24, 0.12, 0.06].slice(0, top.length);
+  const total = weights.reduce((a,b) => a+b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < top.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return top[i];
+  }
+  return top[0];
+}
+
+function resolvePick(pickIdx, player) {
+  const pk = state.picks[pickIdx];
+  pk.player = player;
+  removeFromAvailable(player);
+  assignToRoster(pk.teamIdx, player);
+  advanceCursorPastFilled();
+}
+
+function draftIsDone() {
+  return state.cursor >= state.picks.length;
+}
+
+function currentPick() {
+  return draftIsDone() ? null : state.picks[state.cursor];
+}
+
+function isYourTurn() {
+  const pk = currentPick();
+  return pk && TEAM_ORDER[pk.teamIdx] === YOU;
+}
+
+// ---------- Draft grades ----------
+// Three things get graded, each curved against the room (z-score), the same
+// way real draft-grade tools grade "on a curve" against the field:
+//
+// 1. VALUE — for every pick a team has made (including keepers, which "cost"
+//    the overall slot they occupy in the snake sequence), compare that slot
+//    to the player's ADP using a trade-chart-style curve, so a reach/steal at
+//    the top of the draft counts for more than the same ADP gap in round 12.
+// 2. STARTER QUALITY — not just "is the slot filled" but how good each
+//    starter is relative to their OWN position (their position rank), so a
+//    late reach at QB that leaves you starting a bad TE actually shows up.
+// 3. DEPTH — bench-included positional counts vs rough targets, so "very
+//    little RB depth" is a real, visible signal and not just implied.
+// Overall is a 50/50 blend of Value and Team Building (Starter Quality +
+// Depth) — value alone doesn't decide the grade.
+function pickValue(pick) {
+  const p = Math.max(1, pick);
+  return Math.max(0.5, 100 - 17.71 * Math.log(p));
+}
+
+function parsePosRank(posRk) {
+  const n = parseInt(String(posRk).replace(/\D/g, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : 60;
+}
+
+// Same trade-chart idea, applied within a position: a QB1 starter is worth
+// far more than a QB20 starter. Flattens out fast — depth options beyond
+// "starter quality" are handled separately by the Depth score.
+function posRankValue(posRk) {
+  const n = parsePosRank(posRk);
+  return Math.max(0, 100 - 22 * Math.log(Math.max(1, n)));
+}
+
+const DEPTH_TARGETS = { RB: 5, WR: 6, TE: 1.5, QB: 1.2 };
+const DEPTH_WEIGHTS = { RB: 6, WR: 4, TE: 8, QB: 8 };
+
+function letterForZ(z) {
+  return z >= 1.1 ? 'A' : z >= 0.35 ? 'B' : z >= -0.35 ? 'C' : z >= -1.1 ? 'D' : 'F';
+}
+
+function computeTeamGrades() {
+  const teams = TEAM_ORDER.map((name, idx) => {
+    const picks = state.picks.filter(p => p.teamIdx === idx && p.player);
+    const deltas = picks
+      .map(p => ({
+        pick: p,
+        raw: p.overall - p.player.adp, // human-readable "picks past ADP"
+        weighted: pickValue(p.player.adp) - pickValue(p.overall), // grading input
+      }))
+      .sort((a, b) => b.weighted - a.weighted);
+    const valueSum = deltas.reduce((a, d) => a + d.weighted, 0);
+    const valueAvg = picks.length ? valueSum / picks.length : 0;
+
+    const roster = state.rosters[idx];
+    const posCounts = { QB: 0, RB: 0, WR: 0, TE: 0, DEF: 0, PK: 0 };
+    roster.forEach(s => { if (s.player) posCounts[s.player.pos] = (posCounts[s.player.pos] || 0) + 1; });
+
+    // Starter quality — catches "reached on QB, now your TE is really bad."
+    const starterScores = roster
+      .filter(s => s.slot !== 'BN' && s.player)
+      .map(s => ({ slot: s.slot, player: s.player, score: posRankValue(s.player.posRk) }));
+    const starterQuality = starterScores.length
+      ? starterScores.reduce((a, s) => a + s.score, 0) / starterScores.length
+      : 50;
+    const weakestStarter = starterScores.length
+      ? starterScores.slice().sort((a, b) => a.score - b.score)[0]
+      : null;
+
+    // Depth — catches "very little RB depth," scaled fairly to how far along the draft is.
+    const completion = picks.length / NUM_ROUNDS;
+    let depth = 100;
+    const depthGaps = {};
+    Object.keys(DEPTH_TARGETS).forEach(pos => {
+      const gap = DEPTH_TARGETS[pos] * completion - (posCounts[pos] || 0);
+      depthGaps[pos] = gap;
+      depth -= Math.max(0, gap) * DEPTH_WEIGHTS[pos];
+    });
+    depth = Math.max(0, Math.min(100, depth));
+    // Only a genuine shortfall counts as "thin" — a position where every other
+    // slot is already oversupplied shouldn't get flagged just for being least-surplus.
+    const shortPositions = Object.keys(depthGaps).filter(pos => depthGaps[pos] > 0);
+    const thinnestPos = shortPositions.length
+      ? shortPositions.reduce((worst, pos) => depthGaps[pos] > depthGaps[worst] ? pos : worst, shortPositions[0])
+      : null;
+
+    return {
+      teamIdx: idx, name, picksCount: picks.length, valueSum, valueAvg,
+      starterQuality, weakestStarter,
+      weakestStarterScore: weakestStarter ? weakestStarter.score : 100,
+      depth, depthGaps, thinnestPos, posCounts,
+      best: deltas[0] || null,
+      worst: deltas[deltas.length - 1] || null,
+    };
+  });
+
+  const active = teams.filter(t => t.picksCount > 0);
+  function addZ(field) {
+    const vals = active.map(t => t[field]);
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length;
+    const std = Math.sqrt(variance) || 1;
+    active.forEach(t => { t[field + 'Z'] = (t[field] - mean) / std; });
+  }
+  if (active.length >= 2) {
+    addZ('valueAvg');
+    addZ('starterQuality');
+    addZ('depth');
+    addZ('weakestStarterScore');
+  } else {
+    active.forEach(t => { t.valueAvgZ = 0; t.starterQualityZ = 0; t.depthZ = 0; t.weakestStarterScoreZ = 0; });
+  }
+
+  active.forEach(t => {
+    t.buildZ = 0.6 * t.starterQualityZ + 0.4 * t.depthZ;
+    t.composite = 0.5 * t.valueAvgZ + 0.5 * t.buildZ;
+    t.valueGrade = letterForZ(t.valueAvgZ);
+    t.buildGrade = letterForZ(t.buildZ);
+    t.grade = letterForZ(t.composite);
+  });
+
+  return active.sort((a, b) => b.composite - a.composite);
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function gradeNote(t) {
+  const valueBits = [];
+  if (t.best && t.best.raw > 8) valueBits.push(`stole ${t.best.pick.player.name} ${Math.round(t.best.raw)} picks past ADP`);
+  if (t.worst && t.worst.raw < -8) valueBits.push(`reached for ${t.worst.pick.player.name} ${Math.round(-t.worst.raw)} picks early`);
+
+  const buildBits = [];
+  // "Weak starting X" only fires when a team's worst starter is a real outlier
+  // versus the rest of the league's worst starters — not just whoever happens
+  // to be the WR3/flex, which is structurally never going to be elite.
+  if (t.weakestStarter && t.weakestStarterScoreZ < -0.75 && t.picksCount >= 4) {
+    const posLabel = t.weakestStarter.slot === 'FLEX' ? t.weakestStarter.player.pos : t.weakestStarter.slot;
+    buildBits.push(`weak starting ${posLabel} (${t.weakestStarter.player.name}, ${t.weakestStarter.player.posRk})`);
+  }
+  if (t.thinnestPos && t.depthGaps[t.thinnestPos] > 1.5 && t.picksCount >= 6) {
+    buildBits.push(`thin at ${t.thinnestPos} depth`);
+  }
+
+  const sentences = [];
+  if (valueBits.length) sentences.push(cap(valueBits.join(', ')) + '.');
+  if (buildBits.length) sentences.push(cap(buildBits.join(', ')) + '.');
+  if (!sentences.length) sentences.push('Balanced roster, drafted close to market value.');
+  return sentences.join(' ');
+}
+
+// ---------- Power rankings & season outlook ----------
+// Rates every team's strength at each position, then rolls those into an
+// overall power score and a projected regular-season record.
+const POWER_POS_LIST = ['QB', 'RB', 'WR', 'TE', 'DEF', 'PK'];
+// How many players at a position are effectively "starting" for scoring
+// purposes (FLEX is fungible, so it isn't attributed to one position here).
+const POWER_STARTER_COUNT = { QB: 1, RB: 2, WR: 3, TE: 1, DEF: 1, PK: 1 };
+// Positions where bench depth meaningfully protects against byes/injuries.
+const POWER_DEPTH_POS = new Set(['RB', 'WR', 'TE']);
+// Weight each position carries in overall team power — RB/WR carry the most
+// starting slots and scoring variance, DEF/PK matter least.
+const POWER_WEIGHTS = { QB: 1.0, RB: 1.5, WR: 1.5, TE: 0.8, DEF: 0.3, PK: 0.3 };
+const SEASON_GAMES = 14;
+const REPLACEMENT_LEVEL = 20; // posRankValue assumed for "nobody on the roster at all"
+
+function computeTeamPower() {
+  const teams = TEAM_ORDER.map((name, idx) => {
+    const roster = state.rosters[idx];
+    const filledCount = roster.filter(s => s.player).length;
+    const byPos = {};
+    POWER_POS_LIST.forEach(pos => { byPos[pos] = []; });
+    roster.forEach(s => {
+      if (s.player && byPos[s.player.pos]) {
+        byPos[s.player.pos].push(s.player);
+      }
+    });
+
+    const posScores = {};
+    POWER_POS_LIST.forEach(pos => {
+      const players = byPos[pos].slice().sort((a, b) => parsePosRank(a.posRk) - parsePosRank(b.posRk));
+      const starterCount = POWER_STARTER_COUNT[pos];
+      const starters = players.slice(0, starterCount);
+      const starterAvg = starters.length
+        ? starters.reduce((a, p) => a + posRankValue(p.posRk), 0) / starterCount // missing starters count as 0 — an empty slot IS a weakness
+        : 0;
+      let score = starterAvg;
+      if (POWER_DEPTH_POS.has(pos)) {
+        const depthPlayer = players[starterCount];
+        const depthValue = depthPlayer ? posRankValue(depthPlayer.posRk) : REPLACEMENT_LEVEL;
+        score = 0.8 * starterAvg + 0.2 * depthValue;
+      }
+      posScores[pos] = Math.max(0, Math.min(100, score));
+    });
+
+    return { teamIdx: idx, name, filledCount, posScores };
+  });
+
+  const active = teams.filter(t => t.filledCount > 0);
+  if (active.length >= 2) {
+    // Z-score EACH POSITION first, then combine those z-scores for the overall
+    // power score. Raw posScores aren't on a comparable scale across positions
+    // (a 1-starter slot like QB/DEF/PK can approach 100 on one great player;
+    // WR is an average of 3 starters and structurally never gets that high) —
+    // combining raw scores directly would let a great DEF quietly outweigh a
+    // genuinely bad WR corps. Comparing "how many std devs better than the
+    // league at this position" fixes that, position by position.
+    POWER_POS_LIST.forEach(pos => {
+      const pvals = active.map(t => t.posScores[pos]);
+      const pmean = pvals.reduce((a, b) => a + b, 0) / pvals.length;
+      const pvar = pvals.reduce((a, b) => a + (b - pmean) ** 2, 0) / pvals.length;
+      const pstd = Math.sqrt(pvar) || 1;
+      active.forEach(t => { t[`pos_${pos}_Z`] = (t.posScores[pos] - pmean) / pstd; });
+    });
+
+    const weightSum = POWER_POS_LIST.reduce((a, pos) => a + POWER_WEIGHTS[pos], 0);
+    active.forEach(t => {
+      t.powerComposite = POWER_POS_LIST.reduce((a, pos) => a + t[`pos_${pos}_Z`] * POWER_WEIGHTS[pos], 0) / weightSum;
+    });
+    // Averaging several independent z-scores shrinks the result's own spread
+    // below unit variance (a team that's +1 SD at everything is rare — most
+    // land near 0 once six positions get averaged together). Re-z-score the
+    // composite so "overall power" uses the same 1-SD-per-letter-grade scale
+    // as every individual position column, instead of reading falsely flat.
+    const cvals = active.map(t => t.powerComposite);
+    const cmean = cvals.reduce((a, b) => a + b, 0) / cvals.length;
+    const cvar = cvals.reduce((a, b) => a + (b - cmean) ** 2, 0) / cvals.length;
+    const cstd = Math.sqrt(cvar) || 1;
+    active.forEach(t => { t.overallPowerZ = (t.powerComposite - cmean) / cstd; });
+  } else {
+    active.forEach(t => { t.overallPowerZ = 0; POWER_POS_LIST.forEach(pos => { t[`pos_${pos}_Z`] = 0; }); });
+  }
+
+  active.forEach(t => {
+    const winProb = 1 / (1 + Math.exp(-0.65 * t.overallPowerZ));
+    t.projWins = Math.round(winProb * SEASON_GAMES);
+    t.projLosses = SEASON_GAMES - t.projWins;
+    t.winProb = winProb;
+    t.overallPower = Math.max(0, Math.min(100, 50 + t.overallPowerZ * 16)); // display-friendly 0-100 scale for the bar
+    t.powerGrade = letterForZ(t.overallPowerZ);
+    t.posGrades = {};
+    POWER_POS_LIST.forEach(pos => { t.posGrades[pos] = letterForZ(t[`pos_${pos}_Z`]); });
+  });
+
+  return active.sort((a, b) => b.projWins - a.projWins || b.overallPower - a.overallPower);
+}
+
+function simulateOnePick() {
+  if (draftIsDone()) return false;
+  const pk = currentPick();
+  if (TEAM_ORDER[pk.teamIdx] === YOU) return false; // pause for the human
+  const player = pickForCPU(pk.teamIdx, pk.overall, pk.round);
+  resolvePick(state.cursor, player);
+  return true;
+}
+
+function simulateToYourPick() {
+  let guard = 0;
+  while (!draftIsDone() && !isYourTurn() && guard < 2000) {
+    simulateOnePick();
+    guard++;
+  }
+  render();
+}
+
+// Runs the whole thing through to the end, picking for every team — including
+// you — with the same CPU logic, from wherever the draft currently stands.
+// Handy for fast-forwarding through a full mock to see the final board and grades.
+function simulateEntireDraft() {
+  let guard = 0;
+  while (!draftIsDone() && guard < 2000) {
+    const pk = currentPick();
+    const player = pickForCPU(pk.teamIdx, pk.overall, pk.round);
+    resolvePick(state.cursor, player);
+    guard++;
+  }
+  render();
+}
+
+function draftPlayerForYou(player) {
+  if (!isYourTurn()) return;
+  resolvePick(state.cursor, player);
+  render();
+  // Always auto-advance through the CPU picks that follow your own selection,
+  // independent of the Autoplay toggle — it pauses again the moment it's your turn.
+  autoAdvanceAfterPick();
+}
+
+function autoAdvanceAfterPick() {
+  if (draftIsDone()) return;
+  if (isYourTurn()) return;
+  setTimeout(() => {
+    simulateOnePick();
+    render();
+    autoAdvanceAfterPick();
+  }, 550);
+}
+
+function maybeAutoplay() {
+  if (!state.autoplay) return;
+  if (draftIsDone()) return;
+  if (isYourTurn()) return;
+  setTimeout(() => {
+    simulateOnePick();
+    render();
+    maybeAutoplay();
+  }, 550);
+}
+
+// ---------- Rendering ----------
+const boardTable = document.getElementById('boardTable');
+const clockBar = document.getElementById('clockBar');
+const clockRound = document.getElementById('clockRound');
+const clockPick = document.getElementById('clockPick');
+const clockLabel = document.getElementById('clockLabel');
+const clockOwner = document.getElementById('clockOwner');
+const clockKeeperNote = document.getElementById('clockKeeperNote');
+const snakeTrack = document.getElementById('snakeTrack');
+const boardProgress = document.getElementById('boardProgress');
+const rosterList = document.getElementById('rosterList');
+const rosterByeWarn = document.getElementById('rosterByeWarn');
+const rosterCount = document.getElementById('rosterCount');
+const poolList = document.getElementById('poolList');
+const poolCount = document.getElementById('poolCount');
+const posFilters = document.getElementById('posFilters');
+const poolSearch = document.getElementById('poolSearch');
+const gradesTable = document.getElementById('gradesTable');
+const gradesNote = document.getElementById('gradesNote');
+const yourGradeBadge = document.getElementById('yourGradeBadge');
+const powerTable = document.getElementById('powerTable');
+const powerNote = document.getElementById('powerNote');
+const teamPickerOverlay = document.getElementById('teamPickerOverlay');
+const teamPickerGrid = document.getElementById('teamPickerGrid');
+const whoAmITag = document.getElementById('whoAmITag');
+const yourTeamNameLabel = document.getElementById('yourTeamNameLabel');
+
+function ownerLabel(name) { return name === YOU ? name + " (You)" : name; }
+
+function renderClock() {
+  const pk = currentPick();
+  if (!pk) {
+    clockBar.className = "clock done";
+    clockLabel.textContent = "Draft complete";
+    clockOwner.textContent = "All 15 rounds done";
+    clockOwner.className = "owner";
+    clockRound.textContent = "FIN";
+    clockPick.textContent = "✓";
+    clockKeeperNote.style.display = "none";
+    document.getElementById('stepBtn').disabled = true;
+    document.getElementById('simBtn').disabled = true;
+    document.getElementById('simAllBtn').disabled = true;
+    return;
+  }
+  const owner = TEAM_ORDER[pk.teamIdx];
+  const you = owner === YOU;
+  clockBar.className = you ? "clock your-turn" : "clock";
+  clockRound.textContent = "RD " + pk.round;
+  clockPick.textContent = pk.overall;
+  clockLabel.textContent = you ? "You're on the clock" : "On the clock";
+  clockOwner.textContent = ownerLabel(owner);
+  clockOwner.className = "owner" + (you ? " you" : "");
+  clockKeeperNote.style.display = "none";
+  document.getElementById('stepBtn').disabled = you;
+  document.getElementById('simBtn').disabled = false;
+  document.getElementById('simAllBtn').disabled = false;
+}
+
+function renderSnakeTrack() {
+  snakeTrack.innerHTML = "";
+  const pk = currentPick();
+  const roundOfCurrent = pk ? pk.round : NUM_ROUNDS;
+  const roundStartIdx = (roundOfCurrent - 1) * NUM_TEAMS;
+  for (let i = 0; i < NUM_TEAMS; i++) {
+    const globalIdx = roundStartIdx + i;
+    const p = state.picks[globalIdx];
+    const dot = document.createElement('div');
+    let cls = "snake-dot";
+    if (p && p.player) cls += p.isKeeper ? " keeper" : " filled";
+    if (pk && globalIdx === state.cursor) cls += " current";
+    dot.className = cls;
+    snakeTrack.appendChild(dot);
+  }
+}
+
+function posChip(pos) {
+  const p = pos === "PK" ? "PK" : pos;
+  return `<span class="pos-chip ${p}">${p}</span>`;
+}
+
+function renderBoard() {
+  let html = '<thead><tr><th></th>';
+  TEAM_ORDER.forEach((name, i) => {
+    html += `<th class="${name === YOU ? 'you' : ''}"><span class="slot-num">${i+1}</span>${ownerLabel(name)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  for (let r = 1; r <= NUM_ROUNDS; r++) {
+    html += `<tr><td class="rnd-label">${r}</td>`;
+    const order = (r % 2 === 1) ? [...Array(NUM_TEAMS).keys()] : [...Array(NUM_TEAMS).keys()].reverse();
+    // Build a lookup for this round by teamIdx -> pick
+    const roundPicks = {};
+    order.forEach(teamIdx => {
+      const idx = state.picks.findIndex(p => p.round === r && p.teamIdx === teamIdx);
+      roundPicks[teamIdx] = state.picks[idx];
+      roundPicks[teamIdx]._idx = idx;
+    });
+    for (let teamIdx = 0; teamIdx < NUM_TEAMS; teamIdx++) {
+      const pk = roundPicks[teamIdx];
+      const isCurrent = !draftIsDone() && pk._idx === state.cursor;
+      if (pk.player) {
+        const cls = pk.isKeeper ? "cell keeper" : "cell";
+        html += `<td><div class="${cls}">
+          <div class="pk-no">#${pk.overall}${pk.isKeeper ? ' &middot; KEEPER<span class=\"keeper-star\">★</span>' : ''}</div>
+          <div class="pl-name">${pk.player.name}</div>
+          <div class="pl-meta">${posChip(pk.player.pos)}<span class="pl-team">${pk.player.team}</span></div>
+        </div></td>`;
+      } else {
+        html += `<td><div class="cell empty${isCurrent ? ' current' : ''}">
+          <div class="pk-no">#${pk.overall}</div>
+        </div></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  boardTable.innerHTML = html;
+
+  const filled = state.picks.filter(p => p.player).length;
+  boardProgress.textContent = draftIsDone()
+    ? `All ${state.picks.length} picks complete`
+    : `Pick ${state.cursor + 1} of ${state.picks.length}`;
+}
+
+function renderRoster() {
+  const roster = state.rosters[TEAM_ORDER.indexOf(YOU)];
+  rosterList.innerHTML = roster.map(s => {
+    const filled = !!s.player;
+    const byeTag = filled ? `<span class="roster-bye">Bye ${s.player.bye}</span>` : '';
+    return `<div class="roster-row ${filled ? 'filled' : ''}">
+      <div class="roster-slot">${s.slot}</div>
+      <div class="roster-player">${filled ? s.player.name + ' <span class="pl-team">' + s.player.team + '</span>' : '<span class="roster-empty-dash">&mdash;</span>'}</div>
+      <div class="roster-right">${filled ? posChip(s.player.pos) : ''}${byeTag}</div>
+    </div>`;
+  }).join('');
+  rosterCount.textContent = `${roster.filter(s=>s.player).length} / ${roster.length}`;
+
+  // Flag bye-week clashes among STARTERS only — bench guys sharing a bye is
+  // normal and fine, but 2+ starters out the same week is worth knowing.
+  const byeCounts = {};
+  roster.forEach(s => {
+    if (s.player && s.slot !== 'BN') {
+      byeCounts[s.player.bye] = byeCounts[s.player.bye] || [];
+      byeCounts[s.player.bye].push(s.player.name);
+    }
+  });
+  const clashes = Object.entries(byeCounts).filter(([wk, names]) => names.length >= 2)
+    .sort((a, b) => b[1].length - a[1].length);
+  if (clashes.length) {
+    const [wk, names] = clashes[0];
+    rosterByeWarn.style.display = 'flex';
+    rosterByeWarn.innerHTML = `<span>&#9888;</span> Week ${wk} bye clash: ${names.length} starters out (${names.join(', ')})`;
+  } else {
+    rosterByeWarn.style.display = 'none';
+  }
+}
+
+const POS_LIST = ["ALL","QB","RB","WR","TE","FLEX","DEF","PK"];
+function renderPosFilters() {
+  posFilters.innerHTML = POS_LIST.map(p =>
+    `<button class="pos-filter ${state.posFilter === p ? 'active' : ''}" data-pos="${p}">${p}</button>`
+  ).join('');
+}
+
+function renderPool() {
+  const you = isYourTurn();
+  let list = state.available;
+  if (state.posFilter !== "ALL") {
+    list = list.filter(p => {
+      if (state.posFilter === "FLEX") return FLEX_ELIGIBLE.includes(p.pos);
+      return p.pos === state.posFilter;
+    });
+  }
+  if (state.search.trim()) {
+    const q = state.search.trim().toLowerCase();
+    list = list.filter(p => p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
+  }
+  poolCount.textContent = `${list.length} available`;
+  if (!you) {
+    poolList.innerHTML = `<div class="empty-note">Not your pick right now &mdash; simulate ahead to draft.</div>` +
+      list.slice(0, 60).map(rowHtml).join('');
+  } else {
+    poolList.innerHTML = list.slice(0, 200).map(rowHtml).join('');
+  }
+
+  function rowHtml(p) {
+    return `<button class="pool-row" data-name="${encodeURIComponent(p.name)}" ${you ? '' : 'disabled'}>
+      <div class="pool-rank">${p.rank}</div>
+      <div class="pool-name-wrap"><div class="pool-name">${p.name}</div><div class="pool-team">${p.team} &middot; Bye ${p.bye}</div></div>
+      <div>${posChip(p.pos)}</div>
+      <div class="pool-adp">${p.adp.toFixed(1)}</div>
+    </button>`;
+  }
+}
+
+function fmtDelta(n) {
+  const r = Math.round(n * 10) / 10;
+  return (r > 0 ? '+' : '') + r.toFixed(1);
+}
+
+function fmtPicks(n) {
+  const r = Math.round(n);
+  return (r > 0 ? '+' : '') + r + ' picks';
+}
+
+function renderGrades() {
+  const totalPicks = state.picks.filter(p => p.player).length;
+  if (totalPicks < NUM_TEAMS) {
+    gradesTable.innerHTML = `<tbody><tr><td class="grades-empty">Grades appear once round 1 wraps up &mdash; each team needs at least a pick or two on the board first.</td></tr></tbody>`;
+    gradesNote.textContent = 'Live · not enough picks yet';
+    yourGradeBadge.style.display = 'none';
+    return;
+  }
+
+  const ranked = computeTeamGrades();
+  gradesNote.textContent = draftIsDone() ? 'Final' : 'Live · updates as picks are made';
+
+  const you = ranked.find(t => t.name === YOU);
+  if (you) {
+    yourGradeBadge.style.display = 'inline-flex';
+    yourGradeBadge.dataset.grade = you.grade;
+    yourGradeBadge.textContent = you.grade;
+  }
+
+  let html = `<thead><tr>
+    <th></th><th>Team</th>
+    <th>Overall</th>
+    <th>Value<span class="th-sub">ADP, weighted by pick slot</span></th>
+    <th>Team building<span class="th-sub">starters + depth</span></th>
+    <th>Notes</th>
+  </tr></thead><tbody>`;
+  ranked.forEach((t, i) => {
+    const isYou = t.name === YOU;
+    html += `<tr class="${isYou ? 'you-row' : ''}">
+      <td class="g-rank">${i + 1}</td>
+      <td><div class="g-team"><span class="g-name ${isYou ? 'you' : ''}">${ownerLabel(t.name)}</span></div></td>
+      <td><span class="grade-badge" data-grade="${t.grade}">${t.grade}</span></td>
+      <td><span class="grade-badge sm" data-grade="${t.valueGrade}">${t.valueGrade}</span></td>
+      <td><span class="grade-badge sm" data-grade="${t.buildGrade}">${t.buildGrade}</span></td>
+      <td class="g-note">${gradeNote(t)}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  gradesTable.innerHTML = html;
+}
+
+function fmtRecord(t) {
+  return `${t.projWins}-${t.projLosses}`;
+}
+
+function renderPower() {
+  const totalPicks = state.picks.filter(p => p.player).length;
+  if (totalPicks < NUM_TEAMS) {
+    powerTable.innerHTML = `<tbody><tr><td class="grades-empty">Power rankings appear once round 1 wraps up &mdash; each team needs a roster on the board first.</td></tr></tbody>`;
+    powerNote.textContent = 'Live · not enough picks yet';
+    return;
+  }
+
+  const ranked = computeTeamPower();
+  powerNote.textContent = draftIsDone() ? 'Final' : 'Live · updates as picks are made';
+
+  let html = '<thead><tr><th></th><th>Team</th><th>Power</th>';
+  POWER_POS_LIST.forEach(pos => { html += `<th>${pos}</th>`; });
+  html += '<th>Proj. record<span class="th-sub">14-game season</span></th></tr></thead><tbody>';
+  ranked.forEach((t, i) => {
+    const isYou = t.name === YOU;
+    html += `<tr class="${isYou ? 'you-row' : ''}">
+      <td class="g-rank">${i + 1}</td>
+      <td><div class="g-team"><span class="g-name ${isYou ? 'you' : ''}">${ownerLabel(t.name)}</span></div></td>
+      <td><div class="g-power-bar-wrap"><div class="g-power-bar"><span style="width:${Math.round(t.overallPower)}%"></span></div><span class="g-power-num">${Math.round(t.overallPower)}</span></div></td>`;
+    POWER_POS_LIST.forEach(pos => {
+      html += `<td><span class="grade-badge sm" data-grade="${t.posGrades[pos]}">${t.posGrades[pos]}</span></td>`;
+    });
+    html += `<td class="g-record">${fmtRecord(t)}<span class="rec-pct">${Math.round(t.winProb * 100)}%</span></td>`;
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  powerTable.innerHTML = html;
+}
+
+function render() {
+  renderClock();
+  renderSnakeTrack();
+  renderBoard();
+  renderRoster();
+  renderPool();
+  renderGrades();
+  renderPower();
+}
+
+// ---------- Events ----------
+document.getElementById('stepBtn').addEventListener('click', () => {
+  simulateOnePick();
+  render();
+  maybeAutoplay();
+});
+document.getElementById('simBtn').addEventListener('click', () => {
+  simulateToYourPick();
+});
+document.getElementById('simAllBtn').addEventListener('click', () => {
+  simulateEntireDraft();
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  initState();
+  render();
+});
+document.getElementById('autoplayToggle').addEventListener('change', (e) => {
+  state.autoplay = e.target.checked;
+  if (state.autoplay) maybeAutoplay();
+});
+poolSearch.addEventListener('input', (e) => {
+  state.search = e.target.value;
+  renderPool();
+});
+posFilters.addEventListener('click', (e) => {
+  const btn = e.target.closest('.pos-filter');
+  if (!btn) return;
+  state.posFilter = btn.dataset.pos;
+  renderPosFilters();
+  renderPool();
+});
+poolList.addEventListener('click', (e) => {
+  const btn = e.target.closest('.pool-row');
+  if (!btn || btn.disabled) return;
+  const name = decodeURIComponent(btn.dataset.name);
+  const player = playerByName[name];
+  if (player) draftPlayerForYou(player);
+});
+
+// ---------- Team picker (who is "you" on this device) ----------
+function renderTeamPicker() {
+  teamPickerGrid.innerHTML = TEAM_ORDER.map((name, i) =>
+    `<button class="team-pick-btn" data-name="${encodeURIComponent(name)}"><span class="slot-no">Pick ${i + 1}</span>${name}</button>`
+  ).join('');
+}
+
+function showPicker() {
+  teamPickerOverlay.style.display = 'flex';
+}
+
+function hidePicker() {
+  teamPickerOverlay.style.display = 'none';
+}
+
+function startDraftAsYou(name) {
+  YOU = name;
+  try { localStorage.setItem(STORAGE_KEY, name); } catch (e) { /* storage unavailable — just won't be remembered */ }
+  whoAmITag.textContent = "Playing as " + name + " · Switch";
+  whoAmITag.style.display = "inline-block";
+  yourTeamNameLabel.textContent = name;
+  hidePicker();
+  initState();
+  renderPosFilters();
+  render();
+}
+
+teamPickerGrid.addEventListener('click', (e) => {
+  const btn = e.target.closest('.team-pick-btn');
+  if (!btn) return;
+  startDraftAsYou(decodeURIComponent(btn.dataset.name));
+});
+
+whoAmITag.addEventListener('click', () => {
+  if (!confirm('Switch teams? This resets the current draft so the new team can start fresh.')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  YOU = null;
+  showPicker();
+});
+
+// ---------- Init ----------
+renderTeamPicker();
+let savedTeam = null;
+try { savedTeam = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+if (savedTeam && TEAM_ORDER.includes(savedTeam)) {
+  startDraftAsYou(savedTeam);
+} else {
+  showPicker();
+}
+</script>
+</body>
+</html>
